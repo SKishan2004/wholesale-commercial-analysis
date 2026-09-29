@@ -1,0 +1,272 @@
+// Prisma Schema for Wholesale Commercial Analysis Engine
+// Supports SQLite for zero-setup local dev and PostgreSQL for production
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Master Dimensional Tables for Scalable Normalization
+model Customer {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  records     TrafficCommercialRecord[]
+  createdAt   DateTime @default(now())
+}
+
+model Operator {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  records   TrafficCommercialRecord[]
+  createdAt DateTime @default(now())
+}
+
+model Carrier {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  records   TrafficCommercialRecord[]
+  createdAt DateTime @default(now())
+}
+
+model Country {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  region    String
+  records   TrafficCommercialRecord[]
+  createdAt DateTime @default(now())
+}
+
+model Route {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  cableName    String?
+  sourceCode   String
+  destCode     String
+  records      TrafficCommercialRecord[]
+  createdAt    DateTime @default(now())
+}
+
+// Import Audit History & File Metadata Model
+model ImportJob {
+  id               String   @id @default(uuid())
+  originalFilename String
+  storedFilePath   String
+  uploadedAt       DateTime @default(now())
+  fileSize         Int
+  totalRows        Int
+  validRows        Int
+  rejectedRows     Int
+  warningCount     Int      @default(0)
+  status           String   // UPLOADED, VALIDATED, COMMITTED, FAILED
+  replaceExisting  Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  records          TrafficCommercialRecord[]
+
+  @@index([uploadedAt])
+  @@index([status])
+}
+
+// Transactional Fact Table for Wholesale Commercial Traffic & Revenue
+model TrafficCommercialRecord {
+  id                   String   @id @default(uuid())
+  recordDate           DateTime
+  month                Int
+  year                 Int
+
+  // Import Job Linkage
+  importId             String?
+  importJob            ImportJob? @relation(fields: [importId], references: [id], onDelete: Cascade)
+  
+  // Dimensional Foreign Keys
+  customerId           String
+  customer             Customer @relation(fields: [customerId], references: [id])
+  
+  operatorId           String
+  operator             Operator @relation(fields: [operatorId], references: [id])
+  
+  carrierId            String
+  carrier              Carrier  @relation(fields: [carrierId], references: [id])
+  
+  countryId            String
+  country              Country  @relation(fields: [countryId], references: [id])
+  
+  routeId              String
+  route                Route    @relation(fields: [routeId], references: [id])
+
+  trafficDirection     String   // INCOMING, OUTGOING, BOTH
+
+  // Raw Volume Inputs
+  outgoingMinutes      Float
+  incomingMinutes      Float
+
+  // Share Ratios (0.0 to 1.0 representing 0% to 100%)
+  outgoingShare        Float
+  incomingShare        Float
+
+  // Dynamic Volume Outputs
+  calculatedOutgoingTraffic Float
+  calculatedIncomingTraffic Float
+
+  // Rates & Unit Financial Inputs
+  incomingRevenueRate  Float
+  outgoingRevenueRate Float // Subscriber revenue per minute
+  outgoingCostRate     Float
+
+  // Optional Cost Parameters (Configurable Rules)
+  interconnectCostRate Float?   @default(0)
+  terminationCostRate  Float?   @default(0)
+  transitCostRate      Float?   @default(0)
+  cableCapacityCost    Float?   @default(0)
+  settlementCost       Float?   @default(0)
+  regulatoryTaxCost    Float?   @default(0)
+  otherOperatingCost   Float?   @default(0)
+
+  // Financial Calculations
+  incomingRevenue      Float
+  subscriberRevenue    Float
+  totalRevenue         Float
+
+  wholesaleCost        Float
+  totalVariableCost    Float
+  totalFixedCost       Float
+  totalCost            Float
+
+  grossProfit          Float
+  netProfit            Float
+  profitMarginPct      Float
+
+  currency             String   @default("USD")
+  fxRateToReport       Float    @default(1.0)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([recordDate])
+  @@index([importId])
+  @@index([operatorId])
+  @@index([carrierId])
+  @@index([customerId])
+  @@index([routeId])
+  @@index([countryId])
+}
+
+// Commercial Simulation Workspace Models
+model CommercialSimulation {
+  id                  String                   @id @default(uuid())
+  name                String
+  description         String?                  @default("")
+  status              String                   @default("DRAFT")
+  outgoingMinutes     Float                    @default(100000)
+  incomingMinutes     Float                    @default(200000)
+  outgoingRevenueRate Float                    @default(1.0)
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  carriers            SimulationCarrierInput[]
+}
+
+model SimulationCarrierInput {
+  id                  String               @id @default(uuid())
+  simulationId        String
+  simulation          CommercialSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  carrierName         String
+  outgoingShare       Float
+  incomingShare       Float
+  incomingRevenueRate Float
+  outgoingCostRate    Float
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@index([simulationId])
+}
+
+// Phase 2 Final Commercial Scenario Models
+model FinalCommercialScenario {
+  id                  String                      @id @default(uuid())
+  name                String                      @default("Final Commercial Scenario")
+  description         String?                     @default("Consolidated final carrier allocation decision")
+  sourceSimulationId  String?
+  outgoingMinutes     Float                       @default(100000)
+  incomingMinutes     Float                       @default(200000)
+  outgoingRevenueRate Float                       @default(1.0)
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+
+  carriers            FinalScenarioCarrierInput[]
+}
+
+model FinalScenarioCarrierInput {
+  id                  String                  @id @default(uuid())
+  finalScenarioId     String
+  finalScenario       FinalCommercialScenario @relation(fields: [finalScenarioId], references: [id], onDelete: Cascade)
+  carrierName         String
+  outgoingShare       Float
+  incomingShare       Float
+  incomingRevenueRate Float
+  outgoingCostRate    Float
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@index([finalScenarioId])
+}
+
+// Phase 3 Approved Decisions & Allocations Models
+model ApprovedCommercialDecision {
+  id                    String                      @id @default(uuid())
+  scenarioId            String?
+  scenarioName          String                      @default("Final Commercial Scenario")
+  sourceSimulationName  String?                     @default("Simulation")
+  status                String                      @default("Approved") // "Draft" | "Ready for Approval" | "Approved"
+  approvalTimestamp     DateTime                    @default(now())
+  outgoingMinutes       Float
+  incomingMinutes       Float
+  outgoingRevenueRate   Float
+  totalIncomingTraffic  Float
+  totalOutgoingTraffic  Float
+  totalIncomingRevenue  Float
+  totalSubscriberRevenue Float
+  totalRevenue          Float
+  totalWholesaleCost    Float
+  netProfit             Float
+  profitMarginPct       Float
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+
+  carrierAllocations    ApprovedCarrierAllocation[]
+}
+
+model ApprovedCarrierAllocation {
+  id                        String                     @id @default(uuid())
+  decisionId                String
+  decision                  ApprovedCommercialDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  carrierName               String
+  outgoingSharePct          Float
+  incomingSharePct          Float
+  incomingRevenueRate       Float
+  outgoingCostRate          Float
+  calculatedOutgoingTraffic Float
+  calculatedIncomingTraffic Float
+  incomingRevenue           Float
+  subscriberRevenue         Float
+  totalRevenue              Float
+  wholesaleCost             Float
+  netProfit                 Float
+  profitMarginPct           Float
+  createdAt                 DateTime                   @default(now())
+
+  @@index([decisionId])
+}
+
+
+
