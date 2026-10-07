@@ -601,6 +601,17 @@ app.get('/api/mno/route-pair', async (req, res) => {
   }
 });
 
+// Serve static client production build if available
+const clientDistPath = path.resolve(__dirname, '../../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  console.log(`📁 Serving static production frontend from: ${clientDistPath}`);
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
+
 // Start Server & Initialize Database Persistence
 app.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
