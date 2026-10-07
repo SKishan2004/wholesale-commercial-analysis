@@ -43,6 +43,8 @@ import {
   STORAGE_UPLOADS_DIR
 } from './services/dbRepository';
 
+import { parseMnoExcel, getMnoRoutes } from './services/mnoDataService';
+
 dotenv.config();
 
 const app = express();
@@ -556,6 +558,30 @@ app.get('/api/approval/export-pdf/:id', async (req, res) => {
     res.send(html);
   } catch (err: any) {
     res.status(500).send('Failed to generate PDF report');
+  }
+});
+
+// -----------------------------------------------------------------
+// MNO DATASET API ENDPOINTS (From Global_Telecom_MNO_Verified.xlsx)
+// -----------------------------------------------------------------
+
+app.get('/api/mno/countries', async (req, res) => {
+  try {
+    const countries = await parseMnoExcel();
+    res.json({ success: true, count: countries.length, countries });
+  } catch (err: any) {
+    console.error('Failed to load MNO countries:', err);
+    res.status(500).json({ error: err.message || 'Failed to parse MNO dataset' });
+  }
+});
+
+app.get('/api/mno/routes', async (req, res) => {
+  try {
+    const routes = await getMnoRoutes();
+    res.json({ success: true, count: routes.length, routes });
+  } catch (err: any) {
+    console.error('Failed to load MNO routes:', err);
+    res.status(500).json({ error: err.message || 'Failed to parse MNO routes' });
   }
 });
 

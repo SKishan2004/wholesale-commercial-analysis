@@ -20,7 +20,8 @@ import {
   Columns,
   Award,
   ShieldCheck,
-  FileCheck
+  FileCheck,
+  Globe
 } from 'lucide-react';
 import { SimulationComparisonMatrix } from './SimulationComparisonMatrix';
 import { FinalScenarioWorkspace, FinalScenarioModel } from './FinalScenarioWorkspace';
@@ -88,7 +89,22 @@ export interface SimulationModel {
   };
 }
 
-export const CarrierSimulationWorkspace: React.FC = () => {
+export interface SimulationContext {
+  country?: string;
+  operator?: string;
+  destinationCountry?: string;
+  carrier?: string;
+}
+
+export interface CarrierSimulationWorkspaceProps {
+  selectedContext?: SimulationContext | null;
+  onClearContext?: () => void;
+}
+
+export const CarrierSimulationWorkspace: React.FC<CarrierSimulationWorkspaceProps> = ({
+  selectedContext,
+  onClearContext
+}) => {
   const [simulations, setSimulations] = useState<SimulationModel[]>([]);
   const [activeSimIndex, setActiveSimIndex] = useState<number>(0);
   const [activeFinalScenario, setActiveFinalScenario] = useState<FinalScenarioModel | null>(null);
@@ -417,6 +433,27 @@ export const CarrierSimulationWorkspace: React.FC = () => {
     triggerLocalRecalculate(100000, 200000, 1.0, baselineCarriers);
   };
 
+  // Apply selected context (Country + Operator / Route) to active simulation
+  const handleApplyContextToSimulation = () => {
+    if (!selectedContext) return;
+    const newName = `${selectedContext.country ? selectedContext.country + ' - ' : ''}${selectedContext.operator || 'Operator'} Scenario`;
+    setDraftName(newName);
+
+    if (selectedContext.operator && draftCarriers.length > 0) {
+      const updatedCarriers = draftCarriers.map((c, idx) => {
+        if (idx === 0 && selectedContext.operator) {
+          return { ...c, carrierName: selectedContext.operator };
+        }
+        if (idx === 1 && selectedContext.carrier) {
+          return { ...c, carrierName: selectedContext.carrier };
+        }
+        return c;
+      });
+      setDraftCarriers(updatedCarriers);
+      triggerLocalRecalculate(draftOutgoingMins, draftIncomingMins, draftOutgoingRevRate, updatedCarriers);
+    }
+  };
+
   // Copy specified simulation into Final Scenario
   const handleCopySimulationToFinalScenario = async (simId: string) => {
     try {
@@ -450,6 +487,53 @@ export const CarrierSimulationWorkspace: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Context Banner if passed from OPERATORS or CARRIERS tabs */}
+      {selectedContext && (
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 rounded-2xl shadow-sm border border-blue-700/80 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-600 rounded-xl shadow-xs">
+              <Globe className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300">Active Simulation Context</span>
+                {selectedContext.country && (
+                  <span className="px-2 py-0.5 rounded text-[11px] font-extrabold bg-blue-800 text-blue-100 border border-blue-600">
+                    Source: {selectedContext.country}
+                  </span>
+                )}
+                {selectedContext.destinationCountry && (
+                  <span className="px-2 py-0.5 rounded text-[11px] font-extrabold bg-indigo-800 text-indigo-100 border border-indigo-600">
+                    → Dest: {selectedContext.destinationCountry}
+                  </span>
+                )}
+              </div>
+              <h4 className="text-sm font-extrabold text-white mt-0.5">
+                Selected Operator: <span className="text-blue-200">{selectedContext.operator || 'Selected Market'}</span>
+                {selectedContext.carrier && ` | Carrier / Partner: ${selectedContext.carrier}`}
+              </h4>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleApplyContextToSimulation}
+              className="px-3.5 py-1.5 bg-blue-500 hover:bg-blue-400 text-white font-extrabold text-xs rounded-xl shadow transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-100" /> Apply Operator to Active Simulation
+            </button>
+            {onClearContext && (
+              <button
+                onClick={onClearContext}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Clear Context
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Workspace Sub-Navigation Mode Bar - Clean Underline Tabs with Parallel Action Buttons */}
       <div className="border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <nav className="flex space-x-6 -mb-px overflow-x-auto">
