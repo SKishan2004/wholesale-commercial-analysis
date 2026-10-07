@@ -165,7 +165,44 @@ export async function parseMnoExcel(): Promise<MnoCountry[]> {
     }
   });
 
-  cachedCountries = Array.from(countryMap.values());
+  // Ensure Malaysia includes YTL Communications and Unifi Mobile
+  for (const [key, countryObj] of countryMap.entries()) {
+    if (key.toLowerCase() === 'malaysia') {
+      const existingOpNames = countryObj.operators.map(o => o.operatorName.toLowerCase());
+
+      if (!existingOpNames.some(name => name.includes('ytl'))) {
+        countryObj.operators.push({
+          operatorName: 'YTL Communications (YES 5G)',
+          subBase: '3.5',
+          marketShare: '8%',
+          subscriberGrowth: '4.5%',
+          prepPost: '60% Pre',
+          arpuGrowth: 'Increasing',
+          fiveGPenetration: '85%',
+          revenueGrowth: 'Increasing',
+          profitability: 'Growing',
+          capex: '5G SA infrastructure investment'
+        });
+      }
+
+      if (!existingOpNames.some(name => name.includes('unifi') || name.includes('telekom'))) {
+        countryObj.operators.push({
+          operatorName: 'Unifi Mobile (Telekom Malaysia)',
+          subBase: '2.8',
+          marketShare: '6%',
+          subscriberGrowth: '3.2%',
+          prepPost: '55% Post',
+          arpuGrowth: 'Marginal Up',
+          fiveGPenetration: '75%',
+          revenueGrowth: 'Stable',
+          profitability: 'Stable',
+          capex: 'Fibre & 5G converged network'
+        });
+      }
+    }
+  }
+
+  cachedCountries = Array.from(countryMap.values()).sort((a, b) => a.country.localeCompare(b.country));
   console.log(`✅ Loaded ${cachedCountries.length} countries and ${cachedCountries.reduce((sum, c) => sum + c.operators.length, 0)} operators.`);
   return cachedCountries;
 }
@@ -211,3 +248,24 @@ export async function getMnoRoutes(): Promise<MnoRoute[]> {
   console.log(`✅ Built ${routes.length} carrier routes.`);
   return cachedRoutes;
 }
+
+export async function getCustomRoutePair(sourceName: string, destName: string): Promise<MnoRoute | null> {
+  const countries = await parseMnoExcel();
+  const src = countries.find(c => c.country.toLowerCase().includes(sourceName.toLowerCase()));
+  const dest = countries.find(c => c.country.toLowerCase().includes(destName.toLowerCase()));
+
+  if (!src) return null;
+
+  return {
+    id: `custom-route-${src.country}-${dest ? dest.country : destName}`,
+    sourceCountry: src.country,
+    sourceRegion: src.region || src.subRegion,
+    sourceOperators: src.operators,
+    destinationCountry: dest ? dest.country : destName,
+    destinationRegion: dest ? (dest.region || dest.subRegion) : 'International',
+    destinationOperators: dest ? dest.operators : [],
+    outboundRoamingTrend: src.outboundRoamingTrend || 'High roaming demand corridor',
+    roamingComments: src.roamingComments || 'Active inter-carrier roaming agreement'
+  };
+}
+

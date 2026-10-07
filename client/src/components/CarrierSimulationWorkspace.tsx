@@ -94,6 +94,8 @@ export interface SimulationContext {
   operator?: string;
   destinationCountry?: string;
   carrier?: string;
+  sourceOperatorData?: any;
+  destOperatorData?: any;
 }
 
 export interface CarrierSimulationWorkspaceProps {
@@ -436,22 +438,32 @@ export const CarrierSimulationWorkspace: React.FC<CarrierSimulationWorkspaceProp
   // Apply selected context (Country + Operator / Route) to active simulation
   const handleApplyContextToSimulation = () => {
     if (!selectedContext) return;
-    const newName = `${selectedContext.country ? selectedContext.country + ' - ' : ''}${selectedContext.operator || 'Operator'} Scenario`;
+    const srcOp = selectedContext.operator || 'Source Operator';
+    const destOp = selectedContext.carrier || selectedContext.destinationCountry || 'Partner Carrier';
+    const newName = `${srcOp} (${selectedContext.country || 'Saudi'}) ↔ ${destOp} Corridor`;
     setDraftName(newName);
 
-    if (selectedContext.operator && draftCarriers.length > 0) {
-      const updatedCarriers = draftCarriers.map((c, idx) => {
-        if (idx === 0 && selectedContext.operator) {
-          return { ...c, carrierName: selectedContext.operator };
-        }
-        if (idx === 1 && selectedContext.carrier) {
-          return { ...c, carrierName: selectedContext.carrier };
-        }
-        return c;
-      });
-      setDraftCarriers(updatedCarriers);
-      triggerLocalRecalculate(draftOutgoingMins, draftIncomingMins, draftOutgoingRevRate, updatedCarriers);
-    }
+    const updatedCarriers: CarrierInput[] = [
+      {
+        id: draftCarriers[0]?.id,
+        carrierName: `${srcOp} (${selectedContext.country || 'Saudi'})`,
+        outgoingShare: 60,
+        incomingShare: 50,
+        incomingRevenueRate: 0.50,
+        outgoingCostRate: 0.70
+      },
+      {
+        id: draftCarriers[1]?.id,
+        carrierName: `${destOp} (${selectedContext.destinationCountry || 'Partner'})`,
+        outgoingShare: 40,
+        incomingShare: 50,
+        incomingRevenueRate: 0.40,
+        outgoingCostRate: 0.60
+      }
+    ];
+
+    setDraftCarriers(updatedCarriers);
+    triggerLocalRecalculate(draftOutgoingMins, draftIncomingMins, draftOutgoingRevRate, updatedCarriers);
   };
 
   // Copy specified simulation into Final Scenario
@@ -489,47 +501,120 @@ export const CarrierSimulationWorkspace: React.FC<CarrierSimulationWorkspaceProp
     <div className="space-y-6">
       {/* Context Banner if passed from OPERATORS or CARRIERS tabs */}
       {selectedContext && (
-        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 rounded-2xl shadow-sm border border-blue-700/80 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-600 rounded-xl shadow-xs">
-              <Globe className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300">Active Simulation Context</span>
-                {selectedContext.country && (
-                  <span className="px-2 py-0.5 rounded text-[11px] font-extrabold bg-blue-800 text-blue-100 border border-blue-600">
-                    Source: {selectedContext.country}
-                  </span>
-                )}
-                {selectedContext.destinationCountry && (
-                  <span className="px-2 py-0.5 rounded text-[11px] font-extrabold bg-indigo-800 text-indigo-100 border border-indigo-600">
-                    → Dest: {selectedContext.destinationCountry}
-                  </span>
-                )}
+        <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 text-white p-5 rounded-2xl shadow-md border border-blue-800/80 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-blue-600 rounded-xl shadow-xs">
+                <Globe className="w-5 h-5 text-white" />
               </div>
-              <h4 className="text-sm font-extrabold text-white mt-0.5">
-                Selected Operator: <span className="text-blue-200">{selectedContext.operator || 'Selected Market'}</span>
-                {selectedContext.carrier && ` | Carrier / Partner: ${selectedContext.carrier}`}
-              </h4>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-300">Active Operator Corridor Simulation</span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Verified Excel MNO Data
+                  </span>
+                </div>
+                <h4 className="text-base font-extrabold text-white mt-0.5">
+                  {selectedContext.operator || 'Source Operator'} ({selectedContext.country || 'Source Country'}) ↔ {selectedContext.carrier || selectedContext.destinationCountry || 'Destination Partner'} Corridor
+                </h4>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleApplyContextToSimulation}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-200" /> Auto-Configure Simulation
+              </button>
+              {onClearContext && (
+                <button
+                  onClick={onClearContext}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  Clear Context
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleApplyContextToSimulation}
-              className="px-3.5 py-1.5 bg-blue-500 hover:bg-blue-400 text-white font-extrabold text-xs rounded-xl shadow transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-blue-100" /> Apply Operator to Active Simulation
-            </button>
-            {onClearContext && (
-              <button
-                onClick={onClearContext}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl transition-all cursor-pointer"
-              >
-                Clear Context
-              </button>
-            )}
+          {/* Side-by-side Verified Operator Data Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            {/* Source Operator Card */}
+            <div className="bg-slate-900/90 border border-blue-500/40 rounded-xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-blue-400 uppercase">Source Operator</span>
+                  <h5 className="text-sm font-extrabold text-white">
+                    {selectedContext.operator || 'Source Operator'} ({selectedContext.country || 'Source Country'})
+                  </h5>
+                </div>
+                {selectedContext.sourceOperatorData?.marketShare && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-600 text-white">
+                    {selectedContext.sourceOperatorData.marketShare} Share
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
+                <div className="bg-slate-800/80 p-2 rounded-lg">
+                  <span className="text-[9px] text-slate-400 block uppercase font-bold">Subscribers</span>
+                  <span className="font-extrabold text-white">
+                    {selectedContext.sourceOperatorData?.subBase ? `${selectedContext.sourceOperatorData.subBase} mln` : 'Active Market'}
+                  </span>
+                </div>
+                <div className="bg-slate-800/80 p-2 rounded-lg">
+                  <span className="text-[9px] text-slate-400 block uppercase font-bold">5G Penetration</span>
+                  <span className="font-extrabold text-indigo-300">
+                    {selectedContext.sourceOperatorData?.fiveGPenetration || 'Active Network'}
+                  </span>
+                </div>
+                <div className="bg-slate-800/80 p-2 rounded-lg">
+                  <span className="text-[9px] text-slate-400 block uppercase font-bold">Pre/Postpaid</span>
+                  <span className="font-extrabold text-emerald-300">
+                    {selectedContext.sourceOperatorData?.prepPost || 'Verified Mix'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Destination Operator Card */}
+            <div className="bg-slate-900/90 border border-indigo-500/40 rounded-xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-indigo-400 uppercase">Destination Carrier</span>
+                  <h5 className="text-sm font-extrabold text-white">
+                    {selectedContext.carrier || 'Destination Operator'} ({selectedContext.destinationCountry || 'Partner'})
+                  </h5>
+                </div>
+                {selectedContext.destOperatorData?.marketShare && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-600 text-white">
+                    {selectedContext.destOperatorData.marketShare} Share
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
+                <div className="bg-slate-800/80 p-2 rounded-lg">
+                  <span className="text-[9px] text-slate-400 block uppercase font-bold">Subscribers</span>
+                  <span className="font-extrabold text-white">
+                    {selectedContext.destOperatorData?.subBase ? `${selectedContext.destOperatorData.subBase} mln` : 'Active Partner'}
+                  </span>
+                </div>
+                <div className="bg-slate-800/80 p-2 rounded-lg">
+                  <span className="text-[9px] text-slate-400 block uppercase font-bold">5G Penetration</span>
+                  <span className="font-extrabold text-indigo-300">
+                    {selectedContext.destOperatorData?.fiveGPenetration || '4G/5G Network'}
+                  </span>
+                </div>
+                <div className="bg-slate-800/80 p-2 rounded-lg">
+                  <span className="text-[9px] text-slate-400 block uppercase font-bold">Pre/Postpaid</span>
+                  <span className="font-extrabold text-emerald-300">
+                    {selectedContext.destOperatorData?.prepPost || 'Verified MNO'}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

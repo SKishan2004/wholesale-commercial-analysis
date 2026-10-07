@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .env
 .env.*
 !.env.example
@@ -6,3 +6,7 @@ dist/
 build/
 .vite/
 .vercel/
+*.db
+server/prisma/*.db
+server/storage/uploads/
+server/src/tests/temp_test_files/

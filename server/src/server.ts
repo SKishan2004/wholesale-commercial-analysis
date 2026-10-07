@@ -43,7 +43,7 @@ import {
   STORAGE_UPLOADS_DIR
 } from './services/dbRepository';
 
-import { parseMnoExcel, getMnoRoutes } from './services/mnoDataService';
+import { parseMnoExcel, getMnoRoutes, getCustomRoutePair } from './services/mnoDataService';
 
 dotenv.config();
 
@@ -582,6 +582,22 @@ app.get('/api/mno/routes', async (req, res) => {
   } catch (err: any) {
     console.error('Failed to load MNO routes:', err);
     res.status(500).json({ error: err.message || 'Failed to parse MNO routes' });
+  }
+});
+
+app.get('/api/mno/route-pair', async (req, res) => {
+  const source = String(req.query.source || 'Saudi Arabia');
+  const destination = String(req.query.destination || 'Malaysia');
+
+  try {
+    const routePair = await getCustomRoutePair(source, destination);
+    if (!routePair) {
+      return res.status(404).json({ error: `Source country ${source} not found` });
+    }
+    res.json({ success: true, route: routePair });
+  } catch (err: any) {
+    console.error('Failed to load route pair:', err);
+    res.status(500).json({ error: err.message || 'Failed to parse route pair' });
   }
 });
 

@@ -55,14 +55,14 @@ export const OperatorsView: React.FC<OperatorsViewProps> = ({ onSelectOperator }
         if (!res.ok) throw new Error('Failed to fetch MNO data');
         const data = await res.json();
         if (data.countries && data.countries.length > 0) {
-          setCountries(data.countries);
-          // Default selection to Saudi Arabia if present, or first country
-          const saudi = data.countries.find((c: MnoCountry) => c.country.toLowerCase() === 'saudi arabia');
-          setSelectedCountry(saudi || data.countries[0]);
+          const sorted = [...data.countries].sort((a: MnoCountry, b: MnoCountry) => a.country.localeCompare(b.country));
+          setCountries(sorted);
+          const saudi = sorted.find((c: MnoCountry) => c.country.toLowerCase() === 'saudi arabia');
+          setSelectedCountry(saudi || sorted[0]);
         }
       } catch (err: any) {
         console.error('Error loading MNO dataset:', err);
-        setErrorMsg('Failed to load MNO operator data from Excel source.');
+        setErrorMsg('Failed to load MNO operator data from source.');
       } finally {
         setLoading(false);
       }
@@ -93,7 +93,7 @@ export const OperatorsView: React.FC<OperatorsViewProps> = ({ onSelectOperator }
     return (
       <div className="card-panel rounded-2xl p-12 text-center bg-white border border-slate-200 shadow-sm my-6">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mb-3"></div>
-        <p className="text-sm font-semibold text-slate-600">Loading Verified MNO Operator Directory from Excel...</p>
+        <p className="text-sm font-semibold text-slate-600">Loading MNO Operator Directory...</p>
       </div>
     );
   }
@@ -101,17 +101,17 @@ export const OperatorsView: React.FC<OperatorsViewProps> = ({ onSelectOperator }
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 text-white rounded-2xl p-6 shadow-md border border-slate-800">
+      <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md border border-slate-800">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/30 mb-2">
-              <Building2 className="w-3.5 h-3.5" /> Official Excel MNO Database (`Combined MNO Data`)
+              <Building2 className="w-3.5 h-3.5" /> MNO Operator Directory
             </div>
             <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Global Telecom Operators Directory
             </h2>
             <p className="text-xs text-slate-300 mt-1">
-              Select a Country market to inspect verified MNO operators and open a commercial simulation for any operator.
+              Select a Country market to inspect MNO operators and open a commercial simulation for any operator.
             </p>
           </div>
 
@@ -222,9 +222,6 @@ export const OperatorsView: React.FC<OperatorsViewProps> = ({ onSelectOperator }
                       <Globe className="w-5 h-5 text-blue-600" />
                       {selectedCountry.country} Market Profile
                     </h3>
-                  </div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-bold">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" /> Verified Data
                   </div>
                 </div>
 
